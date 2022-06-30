@@ -3,7 +3,6 @@
 */
 
 #include "cpu_adam.h"
-#include <cmath>
 #include <omp.h>
 #include <torch/extension.h>
 #include <iostream>

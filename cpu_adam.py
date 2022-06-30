@@ -7,7 +7,6 @@ import torch
 import time
 from pathlib import Path
 from CPUAdamBuilder import CPUAdamBuilder
-from deepspeed.utils.logging import should_log_le
 
 
 class DeepSpeedCPUAdam(torch.optim.Optimizer):
@@ -93,7 +92,7 @@ class DeepSpeedCPUAdam(torch.optim.Optimizer):
             eps,
             weight_decay,
             adamw_mode,
-            should_log_le("info"),
+            True,
         )
 
     def __del__(self):

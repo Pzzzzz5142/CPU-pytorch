@@ -10,6 +10,7 @@
 #include <stdio.h>
 #include <cassert>
 #include <algorithm>
+#include <cmath>
 #include "simd.h"
 
 #define STEP(SPAN)                               \
