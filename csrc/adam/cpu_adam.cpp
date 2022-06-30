@@ -217,12 +217,15 @@ int ds_adam_step(int optimizer_id,
         std::static_pointer_cast<Adam_Optimizer>(s_optimizers[optimizer_id]);
     opt->IncrementStep(step, beta1, beta2);
     opt->update_state(lr, epsilon, weight_decay, bias_correction);
+    size_t model_size = 1;
+    for (auto i : params_c.sizes())
+        model_size *= i;
 
     opt->Step_8(params_ptr,
                 grads_ptr,
                 exp_avg_ptr,
                 exp_avg_sq_ptr,
-                params_c.size(0),
+                model_size,
                 nullptr);
 
     return 0;

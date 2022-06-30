@@ -74,8 +74,8 @@ class Net(nn.Module):
 
 
 network = Net()
-# optimizer = torch.optim.Adam(network.parameters())
-optimizer = DeepSpeedCPUAdam(network.parameters())
+# optimizer = torch.optim.AdamW(network.parameters())
+optimizer = DeepSpeedCPUAdam(network.parameters(), weight_decay=0.01)
 
 print(optimizer)
 
@@ -94,16 +94,15 @@ def train(epoch):
         loss.backward()
         optimizer.step()
         if batch_idx % log_interval == 0:
-            # print(
-            #    "Train Epoch: {} [{}/{} ({:.0f}%)]\tLoss: {:.6f}".format(
-            #        epoch,
-            #        batch_idx * len(data),
-            #        len(train_loader.dataset),
-            #        100.0 * batch_idx / len(train_loader),
-            #        loss.item(),
-            #    ),
-            #    end="",
-            # )
+            print(
+                "Train Epoch: {} [{}/{} ({:.0f}%)]\tLoss: {:.6f}".format(
+                    epoch,
+                    batch_idx * len(data),
+                    len(train_loader.dataset),
+                    100.0 * batch_idx / len(train_loader),
+                    loss.item(),
+                ),
+            )
             train_losses.append(loss.item())
             train_counter.append(
                 (batch_idx * 64) + ((epoch - 1) * len(train_loader.dataset))
