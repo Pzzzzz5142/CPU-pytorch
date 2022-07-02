@@ -71,7 +71,10 @@ class OpBuilder(ABC):
         """
         Returns optional list of compiler flags to forward to the build
         """
-        return []
+        if sys.platform == "win32":
+            return ["-O2"]
+        else:
+            return ["-O3", "-std=c++17", "-g", "-Wno-reorder"]
 
     def is_compatible(self, verbose=True):
         """
@@ -394,7 +397,6 @@ class TorchCPUOpBuilder(OpBuilder):
 
         args = super().cxx_args()
         args += [
-            "-g",
             CPU_ARCH,
             "-Xpreprocessor",
             "-fopenmp",
