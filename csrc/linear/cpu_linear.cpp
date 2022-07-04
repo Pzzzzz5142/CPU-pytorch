@@ -44,18 +44,25 @@ int destroy_linear(int linear_id)
 
 torch::Tensor cpu_linear_forward(const torch::Tensor &input, const torch::Tensor &weight, const torch::optional<torch::Tensor> &bias_opt = torch::nullopt)
 {
+    int64_t input_col = 1;
+    std::vector<int64_t> output_size(input.dim());
+    for (int i = 0; i < input.dim() - 1; i++)
+        input_col *= input.size(i), output_size[i] = input.size(i);
+
+    output_size[input.dim() - 1] = weight.size(0);
+
     if (weight.dim() == 2 && bias_opt)
     {
         auto bias = bias_opt.value();
         auto input_c = input.contiguous();
         auto weight_c = weight.contiguous();
-        auto output = bias.repeat({input.size(0), 1}).contiguous();
+        auto output = bias.repeat({input_col, 1}).view(output_size).contiguous();
 
         float *input_ptr = (float *)input_c.data_ptr();
         float *weight_ptr = (float *)weight_c.data_ptr();
         float *output_ptr = (float *)output.data_ptr();
 
-        cblas_sgemm(CblasRowMajor, CblasNoTrans, CblasTrans, input_c.size(0), weight_c.size(0), input_c.size(1), 1, input_ptr, input_c.size(1), weight_ptr, weight_c.size(1), 1, output_ptr, output.size(1));
+        cblas_sgemm(CblasRowMajor, CblasNoTrans, CblasTrans, input_col, weight_c.size(0), input_c.size(input_c.dim() - 1), 1, input_ptr, input_c.size(input_c.dim() - 1), weight_ptr, weight_c.size(1), 1, output_ptr, weight_c.size(0));
 
         return output;
     }
@@ -63,20 +70,36 @@ torch::Tensor cpu_linear_forward(const torch::Tensor &input, const torch::Tensor
     {
         auto input_c = input.contiguous();
         auto weight_c = weight.contiguous();
-        auto output = weight.new_zeros({input_c.size(0), weight_c.size(0)}).contiguous();
+        torch::Tensor output;
+        if (bias_opt)
+        {
+            auto bias = bias_opt.value();
+            auto output = bias.repeat({input_col, 1}).view(output_size).contiguous();
+        }
+        else
+            output = weight.new_zeros({input_col, weight_c.size(0)}).view(output_size).contiguous();
 
         float *input_ptr = (float *)input_c.data_ptr();
         float *weight_ptr = (float *)weight_c.data_ptr();
         float *output_ptr = (float *)output.data_ptr();
+        int n = weight.dim() == 2 ? weight_c.size(0) : 1;
+        int k = weight.dim() == 2 ? weight_c.size(1) : weight_c.size(0);
 
-        cblas_sgemm(CblasRowMajor, CblasNoTrans, CblasTrans, input_c.size(0), weight_c.size(0), input_c.size(1), 1, input_ptr, input_c.size(1), weight_ptr, weight_c.size(1), 1, output_ptr, output.size(1));
+        cblas_sgemm(CblasRowMajor, CblasNoTrans, CblasTrans, input_col, n, input_c.size(input_c.dim() - 1), 1, input_ptr, input_c.size(input_c.dim() - 1), weight_ptr, k, 1, output_ptr, n);
 
         return output;
     }
 }
+
+torch::Tensor cpu_linear_backward(const torch::Tensor &out_grad)
+{
+    throw;
+}
+
 PYBIND11_MODULE(TORCH_EXTENSION_NAME, m)
 {
     m.def("linear_forward", &cpu_linear_forward, "CPU linear forward (C++)");
+    m.def("linear_backward", &cpu_linear_backward, "CPU linear backward (C++)");
     m.def("create_linear", &create_linear, "CPU Adam (C++)");
     m.def("destroy_linear", &destroy_linear, "CPU Adam destroy (C++)");
 }

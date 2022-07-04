@@ -16,8 +16,20 @@ class CPULinearBuilder(TorchCPUOpBuilder):
 
     def libraries_args(self):
         args = super().libraries_args()
-        args += ["/opt/intel/oneapi/mkl/lastest/lib"]
+        try:
+            import os
+
+            paths += [os.path.join(os.environ["CONDA_PREFIX"], "lib")]
+        except:
+            ...
         return args
 
     def include_paths(self):
-        return ["csrc/include", "/opt/intel/oneapi/mkl/latest/include"]
+        paths = ["csrc/include"]
+        try:
+            import os
+
+            paths += [os.path.join(os.environ["CONDA_PREFIX"], "include")]
+        except:
+            ...
+        return paths
