@@ -45,7 +45,9 @@ class CPULinear(nn.Linear):
         del cpu_lin_op_dict[self.lin_id]
 
     def forward(self, input: Tensor) -> Tensor:
-        if not self.training and self.weight.device == torch.device("cpu"):
+        if (
+            not self.training or not torch.is_grad_enabled()
+        ) and self.weight.device == torch.device("cpu"):
             return CPULinearFunction.apply(self.lin_id, input, self.weight, self.bias)
         return F.linear(input, self.weight, self.bias)
 
@@ -55,8 +57,8 @@ if __name__ == "__main__":
         for in_f in range(7, 13):
             for out_f in range(7, 13):
                 for b_a in range(2):
-                    in_f_n = 2 ** in_f
-                    out_f_n = 2 ** out_f
+                    in_f_n = 2**in_f
+                    out_f_n = 2**out_f
                     a = CPULinear(in_f_n, out_f_n, bias=b_a == 0)
                     b = torch.empty((100, 100, in_f_n))
                     d = nn.Linear(in_f_n, out_f_n, bias=b_a == 0)
