@@ -37,7 +37,7 @@ DEFAULT_MAX_TARGET_POSITIONS = 1024
 
 
 @register_model("cpu_transformer")
-class TransformerModel(FairseqEncoderDecoderModel):
+class CPUTransformerModel(FairseqEncoderDecoderModel):
     """
     Transformer model from `"Attention Is All You Need" (Vaswani, et al, 2017)
     <https://arxiv.org/abs/1706.03762>`_.

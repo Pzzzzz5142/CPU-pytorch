@@ -12,7 +12,7 @@ from fairseq.modules import LayerNorm, MultiheadAttention
 from fairseq.modules.fairseq_dropout import FairseqDropout
 from fairseq.modules.quant_noise import quant_noise
 from torch import Tensor
-from .cpu_linear import CPULinear
+from ..cpu_linear import CPULinear
 
 
 class TransformerEncoderLayer(nn.Module):
