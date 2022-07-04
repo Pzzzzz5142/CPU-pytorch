@@ -1,4 +1,4 @@
-from builder import TorchCPUOpBuilder
+from .builder import TorchCPUOpBuilder
 
 
 class CPULinearBuilder(TorchCPUOpBuilder):

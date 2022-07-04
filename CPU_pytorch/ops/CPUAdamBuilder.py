@@ -2,7 +2,7 @@
 Copyright 2020 The Microsoft DeepSpeed Team
 """
 import os
-from builder import TorchCPUOpBuilder
+from .builder import TorchCPUOpBuilder
 
 
 class CPUAdamBuilder(TorchCPUOpBuilder):

@@ -12,7 +12,7 @@ from fairseq.modules import LayerNorm, MultiheadAttention
 from fairseq.modules.fairseq_dropout import FairseqDropout
 from fairseq.modules.quant_noise import quant_noise
 from torch import Tensor
-from ..cpu_linear import CPULinear
+from CPU_pytorch.ops import CPULinear
 
 
 class TransformerEncoderLayer(nn.Module):
@@ -187,10 +187,7 @@ class TransformerDecoderLayer(nn.Module):
         self.cross_self_attention = getattr(args, "cross_self_attention", False)
 
         self.self_attn = self.build_self_attention(
-            self.embed_dim,
-            args,
-            add_bias_kv=add_bias_kv,
-            add_zero_attn=add_zero_attn,
+            self.embed_dim, args, add_bias_kv=add_bias_kv, add_zero_attn=add_zero_attn,
         )
 
         self.activation_fn = utils.get_activation_fn(

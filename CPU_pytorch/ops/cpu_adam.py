@@ -6,7 +6,7 @@ import math
 import torch
 import time
 from pathlib import Path
-from CPUAdamBuilder import CPUAdamBuilder
+from .CPUAdamBuilder import CPUAdamBuilder
 
 
 class DeepSpeedCPUAdam(torch.optim.Optimizer):
@@ -85,14 +85,7 @@ class DeepSpeedCPUAdam(torch.optim.Optimizer):
         self.ds_opt_adam = CPUAdamBuilder().load()
 
         self.ds_opt_adam.create_adam(
-            self.opt_id,
-            lr,
-            betas[0],
-            betas[1],
-            eps,
-            weight_decay,
-            adamw_mode,
-            True,
+            self.opt_id, lr, betas[0], betas[1], eps, weight_decay, adamw_mode, True,
         )
 
     def __del__(self):

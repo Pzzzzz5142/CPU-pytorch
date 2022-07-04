@@ -4,8 +4,6 @@
 
 #pragma once
 
-#define __AVX256__ 1
-
 #if (__x86_64__ || __i386__)
 #include <cpuid.h>
 #include <x86intrin.h>
