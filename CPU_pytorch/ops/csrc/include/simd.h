@@ -109,6 +109,15 @@ inline void simd_fma(AVX_Data *dst, AVX_Data *src_m_l, AVX_Data *src_m_r, AVX_Da
     }
 }
 template <int span>
+inline void simd_fma(AVX_Data *dst, AVX_Data src_m_l, AVX_Data *src_m_r, AVX_Data *src_a)
+{
+#pragma unroll
+    for (size_t i = 0; i < span; ++i)
+    {
+        dst[i].data = SIMD_FMA(src_m_l.data, src_m_r[i].data, src_a[i].data);
+    }
+}
+template <int span>
 inline void simd_sqrt(AVX_Data *dst, AVX_Data *src)
 {
 #pragma unroll

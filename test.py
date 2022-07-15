@@ -5,8 +5,8 @@ import torch.nn as nn
 import torch.nn.functional as F
 import torch.optim as optim
 import time
-from fs_module.ops import DeepSpeedCPUAdam
-from fs_module.ops import CPULinear
+from CPU_pytorch.ops import DeepSpeedCPUAdam
+from CPU_pytorch.ops import CPULinear
 
 n_epochs = 3
 batch_size_train = 64
@@ -39,8 +39,8 @@ class Net(nn.Module):
 
 
 network = Net()
-# optimizer = torch.optim.AdamW(network.parameters())
-optimizer = DeepSpeedCPUAdam(network.parameters(), weight_decay=0.01)
+optimizer = torch.optim.AdamW(network.parameters())
+# optimizer = DeepSpeedCPUAdam(network.parameters(), weight_decay=0.01)
 
 print(optimizer)
 
@@ -89,12 +89,15 @@ test_counter = [i * len(train_loader.dataset) for i in range(n_epochs + 1)]
 
 def train(epoch):
     network.train()
+    a = 0
     for batch_idx, (data, target) in enumerate(train_loader):
         optimizer.zero_grad()
         output = network(data)
         loss = F.nll_loss(output, target)
         loss.backward()
+        t = time.perf_counter()
         optimizer.step()
+        a += time.perf_counter() - t
         if batch_idx % log_interval == 0:
             print(
                 "Train Epoch: {} [{}/{} ({:.0f}%)]\tLoss: {:.6f}".format(
@@ -109,6 +112,7 @@ def train(epoch):
             train_counter.append(
                 (batch_idx * 64) + ((epoch - 1) * len(train_loader.dataset))
             )
+    print(a)
 
 
 def test():
