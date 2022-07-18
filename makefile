@@ -5,6 +5,7 @@
 CC = g++
 # OPT = -no-multibyte-chars
 FLAGS = -O3
+DEBUG = -g --debug
 # -fopt-info
 LDLIBS = -I/Users/pzzzzz/OpenBLAS-0.3.20-x64/include -I/Users/pzzzzz/blis-install/include -I/Users/pzzzzz/CPU-pytorch/CPU_pytorch/ops/csrc/include -L/Users/pzzzzz/miniconda3/envs/ds/lib -lmkl_core -lmkl_intel_ilp64 -lmkl_intel_thread -lmkl_core -liomp5 -lstdc++ -lpthread -lm -ldl -std=c++17 -march=native -Xpreprocessor -fopenmp
 targets = benchmark-naive benchmark-blas
