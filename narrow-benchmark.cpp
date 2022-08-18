@@ -12,25 +12,23 @@
 #endif
 
 /* reference_gemm wraps a call to the BLAS-3 routine GEMM, via the standard FORTRAN interface - hence the reference semantics. */
-void reference_gemm(int N, float ALPHA, float *A, float *B, float *C)
+void reference_gemm(int m, int n, int k, float ALPHA, float *A, float *B, float *C)
 {
     char TRANSA = 'N';
     char TRANSB = 'N';
-    int M = N;
-    int K = N;
     float BETA = 1.;
-    int LDA = N;
-    int LDB = N;
-    int LDC = N;
-    for (int i = 0; i < N; i++)
-        for (int j = 0; j < N; j++)
-            for (int k = 0; k < N; k++)
+    int LDA = k;
+    int LDB = n;
+    int LDC = n;
+    for (int i = 0; i < m; i++)
+        for (int j = 0; j < n; j++)
+            for (int k = 0; k < k; k++)
                 C[i * LDC + j] += ALPHA * A[i * LDA + k] * B[k * LDB + j];
 }
 
 /* Your function must have the following signature: */
 extern const char *gemm_desc;
-extern void square_gemm(int, float *, float *, float *);
+extern void square_gemm(int, int, int, float *, float *, float *);
 
 double wall_time()
 {
@@ -51,9 +49,9 @@ void die(const char *message)
     exit(EXIT_FAILURE);
 }
 
-void fill(float *p, int n)
+void fill(float *p, int m, int n)
 {
-    for (int i = 0; i < n; ++i)
+    for (int i = 0; i < m * n; ++i)
         p[i] = 2 * drand48() - 1; // Uniformly distributed over [-1, 1]
 }
 
@@ -110,9 +108,9 @@ int main(int argc, char **argv)
         float *B = A + nmax * nmax;
         float *C = B + nmax * nmax;
 
-        fill(A, n * n);
-        fill(B, n * n);
-        fill(C, n * n);
+        fill(A, 6, n);
+        fill(B, n, n);
+        fill(C, 6, n);
 
         /* Measure performance (in Gflops/s). */
 
@@ -147,12 +145,12 @@ int main(int argc, char **argv)
         for (n_iterations = 1; seconds < timeout; n_iterations *= 2)
         {
             /* Warm-up */
-            square_gemm(n, A, B, C);
+            square_gemm(6, n, n, A, B, C);
 
             /* Benchmark n_iterations runs of square_gemm */
             seconds = -wall_time();
             for (int it = 0; it < n_iterations; ++it)
-                square_gemm(n, A, B, C);
+                square_gemm(6, n, n, A, B, C);
             seconds += wall_time();
 
             /*  compute Mflop/s rate */
@@ -167,11 +165,11 @@ int main(int argc, char **argv)
 
         /* C := A * B, computed with square_gemm */
         memset(C, 0, n * n * sizeof(float));
-        square_gemm(n, A, B, C);
+        square_gemm(6, n, n, A, B, C);
         /* Do not explicitly check that A and B were unmodified on square_gemm exit
          *  - if they were, the following will most likely detect it:
          * C := C - A * B, computed with reference_gemm */
-        reference_gemm(n, -1., A, B, C);
+        reference_gemm(6, n, n, -1., A, B, C);
 
         /* A := |A|, B := |B|, C := |C| */
         absolute_value(A, n * n);
@@ -179,7 +177,7 @@ int main(int argc, char **argv)
         absolute_value(C, n * n);
 
         /* C := |C| - 3 * e_mach * n * |A| * |B|, computed with reference_gemm */
-        reference_gemm(n, -3. * FLT_EPSILON * n, A, B, C);
+        reference_gemm(6, n, n, -3. * FLT_EPSILON * n, A, B, C);
 
         /* If any element in C is positive, then something went wrong in square_gemm */
         // for (int i = 0; i < n * n; ++i)

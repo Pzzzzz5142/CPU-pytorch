@@ -29,12 +29,13 @@ typedef unsigned long long inc_t;
 typedef unsigned long long dim_t;
 
 void addDot_asm_6x16(
-    size_t K, size_t newN, float *calA, int lda, float *calB, int ldb, float *calC, float *pointNextPackA, float *pointNextPackB)
+    size_t K, size_t newN, float *calA, size_t lda, float *calB, int ldb, float *calC, float *pointNextPackA, float *pointNextPackB)
 {
     float *pointA = &A(0, 0), *pointB = &B(0, 0), *pointC = &C(0, 0);
 
     auto kc = K / 4;
     auto kl = K % 4;
+    lda *= 4;
 
     __asm__ volatile(
         "movq      %0,        %%rsi                \n\t" // kc (64 bit) stored in %rsi
@@ -45,6 +46,7 @@ void addDot_asm_6x16(
         "movq      %5,        %%rdx                \n\t" // newN stored in %rdx
         "movq      %6,        %%r10                \n\t" // Address of pointNextPackA stored in %r10
         "movq      %7,        %%r11                \n\t" // Address of pointNextPackB stored in %r11
+        "movq      %8,        %%r12                \n\t"
 
         "leaq        (%%rcx, %%rdx, 8),  %%r8      \n\t"
         "leaq         (%%r8, %%rdx, 4),  %%r8      \n\t"
@@ -65,6 +67,8 @@ void addDot_asm_6x16(
         "vmovaps    (%%rbx), %%ymm12               \n\t" // loading data from b to avx regs
         "vmovaps  32(%%rbx), %%ymm13               \n\t"
 
+        "prefetcht0    (%%rax)                     \n\t"
+
         "testq     %%rsi,    %%rsi                 \n\t" // if kc==0 start kl loop
         "je        .DKLEFT%=                       \n\t"
 
@@ -73,8 +77,7 @@ void addDot_asm_6x16(
         // update 1.
         "vbroadcastss   (%%rax),  %%ymm14          \n\t" // loading data from a to avx reg
         "vbroadcastss  4(%%rax),  %%ymm15          \n\t"
-        "prefetcht1    128(%%rbx)                  \n\t"
-        "prefetcht1    192(%%rbx)                  \n\t"
+        "prefetcht0    (%%rax, %%r12, 1)           \n\t"
         "vfmadd231ps   %%ymm14,  %%ymm12, %%ymm0   \n\t" // cal fma
         "vfmadd231ps   %%ymm14,  %%ymm13, %%ymm1   \n\t"
         "vfmadd231ps   %%ymm15,  %%ymm12, %%ymm2   \n\t"
@@ -93,31 +96,34 @@ void addDot_asm_6x16(
         "vfmadd231ps   %%ymm14,  %%ymm13, %%ymm9   \n\t"
         "vfmadd231ps   %%ymm15,  %%ymm12, %%ymm10  \n\t"
         "vfmadd231ps   %%ymm15,  %%ymm13, %%ymm11  \n\t"
+        "addq          %%r12,    %%rax             \n\t"
 
         // update 2.
         "vmovaps  64(%%rbx), %%ymm12               \n\t" // loading data from b to avx regs
         "vmovaps  96(%%rbx), %%ymm13               \n\t"
 
-        "vbroadcastss 24(%%rax),  %%ymm14          \n\t" // loading data from a to avx reg
-        "vbroadcastss 28(%%rax),  %%ymm15          \n\t"
+        "vbroadcastss   (%%rax),  %%ymm14          \n\t" // loading data from a to avx reg
+        "vbroadcastss  4(%%rax),  %%ymm15          \n\t"
+        "prefetcht0    (%%rax, %%r12, 1)           \n\t"
         "vfmadd231ps   %%ymm14,  %%ymm12, %%ymm0   \n\t" // cal fma
         "vfmadd231ps   %%ymm14,  %%ymm13, %%ymm1   \n\t"
         "vfmadd231ps   %%ymm15,  %%ymm12, %%ymm2   \n\t"
         "vfmadd231ps   %%ymm15,  %%ymm13, %%ymm3   \n\t"
 
-        "vbroadcastss 32(%%rax),  %%ymm14          \n\t" // loading data from a to avx reg
-        "vbroadcastss 36(%%rax),  %%ymm15          \n\t"
+        "vbroadcastss  8(%%rax),  %%ymm14          \n\t" // loading data from a to avx reg
+        "vbroadcastss 12(%%rax),  %%ymm15          \n\t"
         "vfmadd231ps   %%ymm14,  %%ymm12, %%ymm4   \n\t" // cal fma
         "vfmadd231ps   %%ymm14,  %%ymm13, %%ymm5   \n\t"
         "vfmadd231ps   %%ymm15,  %%ymm12, %%ymm6   \n\t"
         "vfmadd231ps   %%ymm15,  %%ymm13, %%ymm7   \n\t"
 
-        "vbroadcastss 40(%%rax),  %%ymm14          \n\t" // loading data from a to avx reg
-        "vbroadcastss 44(%%rax),  %%ymm15          \n\t"
+        "vbroadcastss 16(%%rax),  %%ymm14          \n\t" // loading data from a to avx reg
+        "vbroadcastss 20(%%rax),  %%ymm15          \n\t"
         "vfmadd231ps   %%ymm14,  %%ymm12, %%ymm8   \n\t" // cal fma
         "vfmadd231ps   %%ymm14,  %%ymm13, %%ymm9   \n\t"
         "vfmadd231ps   %%ymm15,  %%ymm12, %%ymm10  \n\t"
         "vfmadd231ps   %%ymm15,  %%ymm13, %%ymm11  \n\t"
+        "addq          %%r12,    %%rax             \n\t"
 
         // update 3.
         //"prefetcht0 72*4(%%rax)                    \n\t"
@@ -125,54 +131,57 @@ void addDot_asm_6x16(
         "vmovaps 128(%%rbx), %%ymm12               \n\t" // loading data from b to avx regs
         "vmovaps 160(%%rbx), %%ymm13               \n\t"
 
-        "vbroadcastss 48(%%rax),  %%ymm14          \n\t" // loading data from a to avx reg
-        "vbroadcastss 52(%%rax),  %%ymm15          \n\t"
+        "vbroadcastss   (%%rax),  %%ymm14          \n\t" // loading data from a to avx reg
+        "vbroadcastss  4(%%rax),  %%ymm15          \n\t"
+        "prefetcht0    (%%rax, %%r12, 1)           \n\t"
         "vfmadd231ps   %%ymm14,  %%ymm12, %%ymm0   \n\t" // cal fma
         "vfmadd231ps   %%ymm14,  %%ymm13, %%ymm1   \n\t"
         "vfmadd231ps   %%ymm15,  %%ymm12, %%ymm2   \n\t"
         "vfmadd231ps   %%ymm15,  %%ymm13, %%ymm3   \n\t"
 
-        "vbroadcastss 56(%%rax),  %%ymm14          \n\t" // loading data from a to avx reg
-        "vbroadcastss 60(%%rax),  %%ymm15          \n\t"
+        "vbroadcastss  8(%%rax),  %%ymm14          \n\t" // loading data from a to avx reg
+        "vbroadcastss 12(%%rax),  %%ymm15          \n\t"
         "vfmadd231ps   %%ymm14,  %%ymm12, %%ymm4   \n\t" // cal fma
         "vfmadd231ps   %%ymm14,  %%ymm13, %%ymm5   \n\t"
         "vfmadd231ps   %%ymm15,  %%ymm12, %%ymm6   \n\t"
         "vfmadd231ps   %%ymm15,  %%ymm13, %%ymm7   \n\t"
 
-        "vbroadcastss 64(%%rax),  %%ymm14          \n\t" // loading data from a to avx reg
-        "vbroadcastss 68(%%rax),  %%ymm15          \n\t"
+        "vbroadcastss 16(%%rax),  %%ymm14          \n\t" // loading data from a to avx reg
+        "vbroadcastss 20(%%rax),  %%ymm15          \n\t"
         "vfmadd231ps   %%ymm14,  %%ymm12, %%ymm8   \n\t" // cal fma
         "vfmadd231ps   %%ymm14,  %%ymm13, %%ymm9   \n\t"
         "vfmadd231ps   %%ymm15,  %%ymm12, %%ymm10  \n\t"
         "vfmadd231ps   %%ymm15,  %%ymm13, %%ymm11  \n\t"
+        "addq          %%r12,    %%rax             \n\t"
 
         // update 4.
         "vmovaps 192(%%rbx), %%ymm12               \n\t" // loading data from b to avx regs
         "vmovaps 224(%%rbx), %%ymm13               \n\t"
 
-        "vbroadcastss 72(%%rax),  %%ymm14          \n\t" // loading data from a to avx reg
-        "vbroadcastss 76(%%rax),  %%ymm15          \n\t"
-        "subq            $-256,   %%rbx            \n\t" // pointB += 16*4
+        "vbroadcastss   (%%rax),  %%ymm14          \n\t" // loading data from a to avx reg
+        "vbroadcastss  4(%%rax),  %%ymm15          \n\t"
+        "prefetcht0    (%%rax, %%r12, 1)           \n\t"
         "vfmadd231ps   %%ymm14,  %%ymm12, %%ymm0   \n\t" // cal fma
         "vfmadd231ps   %%ymm14,  %%ymm13, %%ymm1   \n\t"
         "vfmadd231ps   %%ymm15,  %%ymm12, %%ymm2   \n\t"
         "vfmadd231ps   %%ymm15,  %%ymm13, %%ymm3   \n\t"
 
-        "vbroadcastss 80(%%rax),  %%ymm14          \n\t" // loading data from a to avx reg
-        "vbroadcastss 84(%%rax),  %%ymm15          \n\t"
+        "vbroadcastss  8(%%rax),  %%ymm14          \n\t" // loading data from a to avx reg
+        "vbroadcastss 12(%%rax),  %%ymm15          \n\t"
         "vfmadd231ps   %%ymm14,  %%ymm12, %%ymm4   \n\t" // cal fma
         "vfmadd231ps   %%ymm14,  %%ymm13, %%ymm5   \n\t"
         "vfmadd231ps   %%ymm15,  %%ymm12, %%ymm6   \n\t"
         "vfmadd231ps   %%ymm15,  %%ymm13, %%ymm7   \n\t"
 
-        "vbroadcastss 88(%%rax),  %%ymm14          \n\t" // loading data from a to avx reg
-        "vbroadcastss 92(%%rax),  %%ymm15          \n\t"
-        "subq             $-96,   %%rax            \n\t" // pointA += 6*4
+        "vbroadcastss 16(%%rax),  %%ymm14          \n\t" // loading data from a to avx reg
+        "vbroadcastss 20(%%rax),  %%ymm15          \n\t"
         "vfmadd231ps   %%ymm14,  %%ymm12, %%ymm8   \n\t" // cal fma
         "vfmadd231ps   %%ymm14,  %%ymm13, %%ymm9   \n\t"
         "vfmadd231ps   %%ymm15,  %%ymm12, %%ymm10  \n\t"
         "vfmadd231ps   %%ymm15,  %%ymm13, %%ymm11  \n\t"
+        "addq          %%r12,    %%rax             \n\t"
 
+        "subq            $-256,   %%rbx            \n\t" // pointB += 16*4
         "vmovaps    (%%rbx), %%ymm12               \n\t" // loading data from b to avx regs
         "vmovaps  32(%%rbx), %%ymm13               \n\t"
 
@@ -190,6 +199,7 @@ void addDot_asm_6x16(
 
         "vbroadcastss   (%%rax),  %%ymm14          \n\t" // loading data from a to avx reg
         "vbroadcastss  4(%%rax),  %%ymm15          \n\t"
+        "prefetcht0    (%%rax, %%r12)              \n\t"
         "vfmadd231ps   %%ymm14,  %%ymm12, %%ymm0   \n\t" // cal fma
         "vfmadd231ps   %%ymm14,  %%ymm13, %%ymm1   \n\t"
         "vfmadd231ps   %%ymm15,  %%ymm12, %%ymm2   \n\t"
@@ -210,7 +220,7 @@ void addDot_asm_6x16(
         "vfmadd231ps   %%ymm15,  %%ymm12, %%ymm10  \n\t"
         "vfmadd231ps   %%ymm15,  %%ymm13, %%ymm11  \n\t"
 
-        "addq     $24,       %%rax                 \n\t" // pointA += 6
+        "addq     %%r12,       %%rax                 \n\t" // pointA += lda
 
         "vmovaps    (%%rbx), %%ymm12               \n\t" // loading data from b to avx regs
         "vmovaps  32(%%rbx), %%ymm13               \n\t"
@@ -248,9 +258,10 @@ void addDot_asm_6x16(
         "m"(pointC),         // 4
         "m"(newN),           // 5
         "m"(pointNextPackA), // 6
-        "m"(pointNextPackB)  // 7
+        "m"(pointNextPackB), // 7
+        "m"(lda)             // 8
         :                    // register clobber list
-        "rax", "rbx", "rcx", "rdx", "rsi", "r8", "r9", "r10", "r11",
+        "rax", "rbx", "rcx", "rdx", "rsi", "r8", "r9", "r10", "r11", "r12",
         "ymm0", "ymm1", "ymm2", "ymm3",
         "ymm4", "ymm5", "ymm6", "ymm7",
         "ymm8", "ymm9", "ymm10", "ymm11",
@@ -312,24 +323,16 @@ void inner_kernal(int m, int n, int k, int newN, float *calA, int lda, float *ca
 {
     static float packA[2 * M_KERNEL_SIZE * K_BLOCK_SIZE] __attribute__((aligned(32)));
     static float packB[N_BLOCK_SIZE * K_BLOCK_SIZE] __attribute__((aligned(32)));
-    float *pointPackA = packA, *pointNextPackA = packA + M_KERNEL_SIZE * K_BLOCK_SIZE;
-    packCol(&A(0, 0), newN, M_KERNEL_SIZE, k, pointPackA);
     for (int i = 0; i < m; i += M_KERNEL_SIZE)
     {
-        if (i + M_KERNEL_SIZE < m)
-            packCol(&A(i + M_KERNEL_SIZE, 0), newN, M_KERNEL_SIZE, k, pointNextPackA);
-        else
-            pointNextPackA = nullptr;
         if (first_time && i == 0)
             packRow(&B(0, 0), newN, k, N_KERNEL_SIZE, packB);
         for (int j = 0; j < n; j += N_KERNEL_SIZE)
         {
             if (first_time && i == 0 && j + N_KERNEL_SIZE < n)
                 packRow(&B(0, j + N_KERNEL_SIZE), newN, k, N_KERNEL_SIZE, packB + ((j + N_KERNEL_SIZE) * k));
-            // addDot(k, newN, packA, M_KERNEL_SIZE, packB + (j * k), N_KERNEL_SIZE, &C(i, j));
-            addDot_asm_6x16(k, newN, pointPackA, M_KERNEL_SIZE, packB + (j * k), N_KERNEL_SIZE, &C(i, j), pointNextPackA, packB + ((j + N_KERNEL_SIZE) * k));
+            addDot_asm_6x16(k, newN, &A(i, 0), lda, packB + (j * k), N_KERNEL_SIZE, &C(i, j), &A(i + M_KERNEL_SIZE, 0), packB + ((j + N_KERNEL_SIZE) * k));
         }
-        std::swap(pointPackA, pointNextPackA);
     }
     // printf("using space: %d, N_KERNEL_SIZE * k: %d * %d = %d.\n", cal, (n + N_KERNEL_SIZE - 1) / N_KERNEL_SIZE * N_KERNEL_SIZE, k, (n + N_KERNEL_SIZE - 1) / N_KERNEL_SIZE * N_KERNEL_SIZE * k);
 }

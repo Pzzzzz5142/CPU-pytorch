@@ -6,3 +6,9 @@ void square_gemm(int N, float *a, float *b, float *c)
     const float aa = 1, bb = 1;
     bli_sgemm(BLIS_NO_TRANSPOSE, BLIS_NO_TRANSPOSE, N, N, N, &aa, a, 1, N, b, 1, N, &bb, c, 1, N);
 }
+
+void square_gemm(int M, int N, int K, float *a, float *b, float *c)
+{
+    const float aa = 1, bb = 1;
+    bli_sgemm(BLIS_NO_TRANSPOSE, BLIS_NO_TRANSPOSE, M, N, K, &aa, a, 1, K, b, 1, N, &bb, c, 1, N);
+}

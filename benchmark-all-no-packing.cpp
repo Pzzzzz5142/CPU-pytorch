@@ -1,6 +1,7 @@
 #include <stdlib.h> // For: exit, drand48, malloc, free, NULL, EXIT_FAILURE
 #include <stdio.h>  // For: perror
 #include <string.h> // For: memset
+#include <iostream>
 
 #include <float.h> // For: DBL_EPSILON
 #include <math.h>  // For: fabs
@@ -22,7 +23,7 @@ void reference_gemm(int N, float ALPHA, float *A, float *B, float *C)
     int LDA = N;
     int LDB = N;
     int LDC = N;
-    for (int i = 0; i < N; i++)
+    for (int i = 0; i < 6; i++)
         for (int j = 0; j < N; j++)
             for (int k = 0; k < N; k++)
                 C[i * LDC + j] += ALPHA * A[i * LDA + k] * B[k * LDB + j];
@@ -30,7 +31,10 @@ void reference_gemm(int N, float ALPHA, float *A, float *B, float *C)
 
 /* Your function must have the following signature: */
 extern const char *gemm_desc;
-extern void square_gemm(int, float *, float *, float *);
+extern void square_gemm(int, int, int, float *, float *, float *);
+extern void gemm_compute(int, int, int, float *, float *, float *);
+extern float *packing(int, int, int, float *, int);
+extern void free_packing(float *);
 
 double wall_time()
 {
@@ -107,12 +111,14 @@ int main(int argc, char **argv)
         int n = test_sizes[isize];
 
         float *A = buf + 0;
-        float *B = A + nmax * nmax;
+        float *B = A + 6 * nmax;
         float *C = B + nmax * nmax;
 
-        fill(A, n * n);
+        fill(A, 6 * n);
         fill(B, n * n);
         fill(C, n * n);
+
+        auto newB = packing(6, n, n, B, n);
 
         /* Measure performance (in Gflops/s). */
 
@@ -147,16 +153,16 @@ int main(int argc, char **argv)
         for (n_iterations = 1; seconds < timeout; n_iterations *= 2)
         {
             /* Warm-up */
-            square_gemm(n, A, B, C);
+            gemm_compute(6, n, n, A, newB, C);
 
             /* Benchmark n_iterations runs of square_gemm */
             seconds = -wall_time();
             for (int it = 0; it < n_iterations; ++it)
-                square_gemm(n, A, B, C);
+                gemm_compute(6, n, n, A, newB, C);
             seconds += wall_time();
 
             /*  compute Mflop/s rate */
-            Gflops_s = 2.e-9 * n_iterations * n * n * n / seconds;
+            Gflops_s = 2.e-9 * n_iterations * 6 * n * n / seconds;
         }
         // gptlRet = GPTLstop("gemm");
         // gptlRet = GPTLpr_file("outfile");
@@ -167,7 +173,9 @@ int main(int argc, char **argv)
 
         /* C := A * B, computed with square_gemm */
         memset(C, 0, n * n * sizeof(float));
-        square_gemm(n, A, B, C);
+        gemm_compute(6, n, n, A, newB, C);
+        free_packing(newB);
+
         /* Do not explicitly check that A and B were unmodified on square_gemm exit
          *  - if they were, the following will most likely detect it:
          * C := C - A * B, computed with reference_gemm */

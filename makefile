@@ -7,7 +7,7 @@ CC = g++
 FLAGS = -O3
 DEBUG = -g --debug
 # -fopt-info
-LDLIBS = -I/Users/pzzzzz/OpenBLAS-0.3.20-x64/include -I/Users/pzzzzz/blis-install/include -I/Users/pzzzzz/CPU-pytorch/CPU_pytorch/ops/csrc/include -L/Users/pzzzzz/miniconda3/envs/ds/lib -lmkl_core -lmkl_intel_ilp64 -lmkl_intel_thread -lmkl_core -liomp5 -lstdc++ -lpthread -lm -ldl -std=c++17 -march=native -Xpreprocessor -fopenmp
+LDLIBS = -I/Users/pzzzzz/miniconda3/envs/ds/include -I/Users/pzzzzz/blis-install/include -I/Users/pzzzzz/CPU-pytorch/CPU_pytorch/ops/csrc/include -L/Users/pzzzzz/miniconda3/envs/ds/lib -lmkl_intel_lp64 -lmkl_intel_thread -lmkl_core -liomp5 -lpthread -lm -ldl -std=c++17 -march=native -Xpreprocessor -fopenmp
 targets = benchmark-naive benchmark-blas
 objects = benchmark.o gemm-naive.o test.o
 
@@ -18,10 +18,16 @@ default : all
 .PHONY : all
 all : clean $(targets)
 
-benchmark-naive : benchmark.o gemm-naive.o
+benchmark-naive : benchmark.o gemm-naive-global.o
 	$(CC) -o $@ $^ $(FLAGS)  $(LDLIBS) -rpath /Users/pzzzzz/miniconda3/envs/ds/lib
 benchmark-naive-d : benchmark.o gemm-naive.o
 	$(CC) -o $@ $^ -g --debug  $(LDLIBS) -rpath /Users/pzzzzz/miniconda3/envs/ds/lib
+benchmark-no-packing: benchmark-all-no-packing.o gemm-naive-global-all.o
+	$(CC) -o $@ $^ $(FLAGS)  $(LDLIBS) -rpath /Users/pzzzzz/miniconda3/envs/ds/lib
+benchmark-no-packing-blas: benchmark-all-no-packing.o gemm-blas.o
+	$(CC) -o $@ $^ $(FLAGS)  $(LDLIBS) -rpath /Users/pzzzzz/miniconda3/envs/ds/lib
+benchmark-all-naive : benchmark-all.o gemm-naive-global-all.o
+	$(CC) -o $@ $^ $(FLAGS)  $(LDLIBS) -rpath /Users/pzzzzz/miniconda3/envs/ds/lib
 benchmark-omp : benchmark.o gemm-naive.o
 	$(CC) -o $@ $^ $(FLAGS) -D__OMP__  $(LDLIBS) -rpath /Users/pzzzzz/miniconda3/envs/ds/lib
 benchmark-blas : benchmark.o gemm-blas.o
@@ -34,8 +40,10 @@ benchmark-blis : benchmark.o gemm-blis.o
 	$(CC) -o $@ $^ $(FLAGS)  $(LDLIBS) /Users/pzzzzz/blis-install/lib/libblis.a -rpath /Users/pzzzzz/blis-install/lib -rpath /Users/pzzzzz/miniconda3/envs/ds/lib
 benchmark-ulm : benchmark.o gemm-ulm.o
 	$(CC) -o $@ $^ $(FLAGS)  $(LDLIBS) -rpath /Users/pzzzzz/miniconda3/envs/ds/lib
-test : test.o gemm-naive.o
+test : test-all.o gemm-naive-global-all.o
 	$(CC) -o $@ $^ --debug -g $(LDLIBS) /Users/pzzzzz/blis-install/lib/libblis.a -rpath /Users/pzzzzz/miniconda3/envs/ds/lib
+test-m : mkl_test.o gemm-blas.o
+	$(CC) -o $@ $^ --debug -g $(LDLIBS) -rpath /Users/pzzzzz/miniconda3/envs/ds/lib
 %.o : %.cpp
 	$(CC) -c $(CFLAGS) $(FLAGS) $< $(LDLIBS)
 
