@@ -3,6 +3,7 @@
 #define __AVX256__ 1
 #include <simd.h>
 #include <new>
+#include <assert.h>
 
 #define A(i, j) calA[(i) + (j)*lda]
 #define B(i, j) calB[(i)*ldb + (j)]
@@ -27,6 +28,8 @@ const char *gemm_desc = "my mmul";
 
 typedef unsigned long long inc_t;
 typedef unsigned long long dim_t;
+
+auto addr_align = std::align_val_t(32);
 
 void addDot_asm_6x16(
     size_t K, size_t newN, float *calA, int lda, float *calB, int ldb, float *calC)
@@ -59,6 +62,8 @@ void addDot_asm_6x16(
         "vmovaps    32(%%r8, %%rdx, 4),  %%ymm9    \n\t"
         "vmovaps      (%%r8, %%rdx, 8),  %%ymm10   \n\t"
         "vmovaps    32(%%r8, %%rdx, 8),  %%ymm11   \n\t"
+
+        //"vzeroall                                  \n\t"
 
         "vmovaps    (%%rbx), %%ymm12               \n\t" // loading data from b to avx regs
         "vmovaps  32(%%rbx), %%ymm13               \n\t"
@@ -299,11 +304,11 @@ inline void packCol(float *calB, int ldb, size_t I, size_t IBound, size_t J, siz
 {
     IBound = std::min(IBound, I);
     JBound = std::min(JBound, J);
-    _mm_prefetch(&B(0, 0), 0);
+    _mm_prefetch(&B(0, 0), _MM_HINT_T0);
     for (int i = 0; i < IBound - 1; i++)
     {
         if (i % 32 == 0)
-            _mm_prefetch(&B(i + 32, 0), 0);
+            _mm_prefetch(&B(i + 32, 0), _MM_HINT_T0);
 #pragma unroll
         for (int j = 0; j < JBound; j++)
         {
@@ -373,7 +378,7 @@ void globalPackingB(size_t n, size_t k, size_t N, float *b, size_t ldb, float *n
 void square_gemm(int M, int N, int K, float *a, float *b, float *c)
 {
     float *calA = a, *calB = b, *calC = c;
-    auto addr_align = std::align_val_t(32);
+
     const size_t paddingTarget = 48;
     size_t padM = M_KERNEL_SIZE - (M % M_KERNEL_SIZE), padN = N_KERNEL_SIZE - (N % N_KERNEL_SIZE), padK = 48 - (K % 48);
     size_t newM = M + padM, newN = N + padN, newK = K + padK;
@@ -453,74 +458,58 @@ void square_gemm(int M, int N, int K, float *a, float *b, float *c)
 void gemm_compute(int M, int N, int K, float *a, float *b, float *c)
 {
     float *calA = a, *calB = b, *calC = c;
-    auto addr_align = std::align_val_t(32);
-    const size_t paddingTarget = 48;
-    size_t padM = M_KERNEL_SIZE - (M % M_KERNEL_SIZE), padN = N_KERNEL_SIZE - (N % N_KERNEL_SIZE), padK = 48 - (K % 48);
-    size_t newM = M + padM, newN = N + padN, newK = K + padK;
 
-    calA = new (addr_align) float[newM * newK];
+    size_t padM = (M_KERNEL_SIZE - (M % M_KERNEL_SIZE)) % M_KERNEL_SIZE, padN = (N_KERNEL_SIZE - (N % N_KERNEL_SIZE)) % N_KERNEL_SIZE;
+    size_t newM = M + padM, newN = N + padN;
+
+    calA = new (addr_align) float[newM * K];
     calC = new (addr_align) float[newM * newN];
-    memset(calA, 0, sizeof(float) * newM * newK);
+    memset(calA, 0, sizeof(float) * newM * K);
     memset(calC, 0, sizeof(float) * newM * newN);
     auto pointA = calA, pointB = calB;
 
     for (int k = 0; k < K; k += K_BLOCK_SIZE)
     {
         auto ik = K_BLOCK_SIZE < K - k ? K_BLOCK_SIZE : K - k;
-        for (int m = 0; m < M; m += M_BLOCK_SIZE)
+        for (int m = 0; m < newM; m += M_BLOCK_SIZE)
         {
-            auto im = M_BLOCK_SIZE < M - m ? M_BLOCK_SIZE : M - m;
-            if (im % M_KERNEL_SIZE)
-                im += M_KERNEL_SIZE - (im % M_KERNEL_SIZE);
+            auto im = M_BLOCK_SIZE < newM - m ? M_BLOCK_SIZE : newM - m;
             globalPackingA(im, ik, K, &oldA(m, k), K, pointA);
             pointA += im * ik;
         }
     }
-    pointA = calA;
-    pointB = calB;
+    //#pragma omp parallel for
     for (int k = 0; k < K; k += K_BLOCK_SIZE)
     {
+        // auto calC = new (addr_align) float[newM * newN];
+        // memset(calC, 0, sizeof(float) * newM * newN);
         auto ik = K_BLOCK_SIZE < K - k ? K_BLOCK_SIZE : K - k;
-#ifdef __OMP__
-#pragma omp parallel for
-#endif
-        auto tmp = pointA;
-        for (int n = 0; n < N; n += N_BLOCK_SIZE)
+        for (int n = 0; n < newN; n += N_BLOCK_SIZE)
         {
-            auto in = N_BLOCK_SIZE < N - n ? N_BLOCK_SIZE : N - n;
-            if (in % N_KERNEL_SIZE)
-                in += N_KERNEL_SIZE - (in % N_KERNEL_SIZE);
-            tmp = pointA;
-            for (int m = 0; m < M; m += M_BLOCK_SIZE)
+            auto in = N_BLOCK_SIZE < newN - n ? N_BLOCK_SIZE : newN - n;
+            for (int m = 0; m < newM; m += M_BLOCK_SIZE)
             {
-                auto im = M_BLOCK_SIZE < M - m ? M_BLOCK_SIZE : M - m;
-                if (im % M_KERNEL_SIZE)
-                    im += M_KERNEL_SIZE - (im % M_KERNEL_SIZE);
-                inner_kernal(im, in, ik, newN, tmp, pointB, &C(m, n));
-                tmp += im * ik;
+                auto im = M_BLOCK_SIZE < newM - m ? M_BLOCK_SIZE : newM - m;
+                inner_kernal(im, in, ik, newN, calA + k * newM + m * ik, calB + k * newN + n * ik, &C(m, n));
             }
-            pointB += in * ik;
         }
-        pointA = tmp;
     }
 
-    float *tmp = c;
     for (int i = 0; i < M; i++)
     {
         for (int j = 0; j < N; j++)
         {
             // printf("%f", C(i, j));
-            *tmp = C(i, j);
-            tmp++;
+            c[i * N + j] += C(i, j);
         }
     }
-    ::operator delete[](calA, addr_align);
     ::operator delete[](calC, addr_align);
+    ::operator delete[](calA, addr_align);
 }
 
 float *packing(int M, int N, int K, float *b, int ldb)
 {
-    auto addr_align = std::align_val_t(32);
+
     const size_t paddingTarget = 48;
     size_t padM = M_KERNEL_SIZE - (M % M_KERNEL_SIZE), padN = N_KERNEL_SIZE - (N % N_KERNEL_SIZE), padK = 48 - (K % 48);
     size_t newM = M + padM, newN = N + padN, newK = K + padK;
@@ -545,6 +534,6 @@ float *packing(int M, int N, int K, float *b, int ldb)
 
 void free_packing(float *Bp)
 {
-    auto addr_align = std::align_val_t(32);
+
     ::operator delete[](Bp, addr_align);
 }

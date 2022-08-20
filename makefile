@@ -23,7 +23,9 @@ benchmark-naive : benchmark.o gemm-naive-global.o
 benchmark-naive-d : benchmark.o gemm-naive.o
 	$(CC) -o $@ $^ -g --debug  $(LDLIBS) -rpath /Users/pzzzzz/miniconda3/envs/ds/lib
 benchmark-no-packing: benchmark-all-no-packing.o gemm-naive-global-all.o
-	$(CC) -o $@ $^ $(FLAGS)  $(LDLIBS) -rpath /Users/pzzzzz/miniconda3/envs/ds/lib
+	$(CC) -o $@ $^ $(FLAGS)  $(FLAGS)
+benchmark-no-packing-omp: benchmark-all-no-packing.o gemm-naive-global-all.o
+	$(CC) -o $@ $^ $(FLAGS)  $(FLAGS) -lomp
 benchmark-no-packing-blas: benchmark-all-no-packing.o gemm-blas.o
 	$(CC) -o $@ $^ $(FLAGS)  $(LDLIBS) -rpath /Users/pzzzzz/miniconda3/envs/ds/lib
 benchmark-all-naive : benchmark-all.o gemm-naive-global-all.o
@@ -41,7 +43,7 @@ benchmark-blis : benchmark.o gemm-blis.o
 benchmark-ulm : benchmark.o gemm-ulm.o
 	$(CC) -o $@ $^ $(FLAGS)  $(LDLIBS) -rpath /Users/pzzzzz/miniconda3/envs/ds/lib
 test : test-all.o gemm-naive-global-all.o
-	$(CC) -o $@ $^ --debug -g $(LDLIBS) /Users/pzzzzz/blis-install/lib/libblis.a -rpath /Users/pzzzzz/miniconda3/envs/ds/lib
+	$(CC) -o $@ $^ --debug -g $(LDLIBS) -rpath /Users/pzzzzz/miniconda3/envs/ds/lib
 test-m : mkl_test.o gemm-blas.o
 	$(CC) -o $@ $^ --debug -g $(LDLIBS) -rpath /Users/pzzzzz/miniconda3/envs/ds/lib
 %.o : %.cpp
