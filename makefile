@@ -20,12 +20,20 @@ all : clean $(targets)
 
 benchmark-naive : benchmark.o gemm-naive-global.o
 	$(CC) -o $@ $^ $(FLAGS)  $(LDLIBS) -rpath /Users/pzzzzz/miniconda3/envs/ds/lib
-benchmark-naive-d : benchmark.o gemm-naive.o
+benchmark-all : benchmark-all.o gemm-naive-global-all.o
+	$(CC) -o $@ $^ $(FLAGS)  $(LDLIBS) -rpath /Users/pzzzzz/miniconda3/envs/ds/lib
+benchmark-naive-d : benchmark-d.o gemm-naive-global-d.o
 	$(CC) -o $@ $^ -g --debug  $(LDLIBS) -rpath /Users/pzzzzz/miniconda3/envs/ds/lib
 benchmark-no-packing: benchmark-all-no-packing.o gemm-naive-global-all.o
-	$(CC) -o $@ $^ $(FLAGS)  $(FLAGS)
+	$(CC) -o $@ $^ $(FLAGS)
+benchmark-no-packing-d: benchmark-all-no-packing-d.o gemm-naive-global-all-d.o
+	$(CC) -o $@ $^ $(DEBUG)
+benchmark-kn: benchmark-all-no-packing.o gemm-naive-global-all-kn.o
+	$(CC) -o $@ $^ $(FLAGS)
+benchmark-kn-d: benchmark-all-no-packing-d.o gemm-naive-global-all-kn-d.o
+	$(CC) -o $@ $^ $(DEBUG)
 benchmark-no-packing-omp: benchmark-all-no-packing.o gemm-naive-global-all.o
-	$(CC) -o $@ $^ $(FLAGS)  $(FLAGS) -lomp
+	$(CC) -o $@ $^ $(FLAGS) -lomp
 benchmark-no-packing-blas: benchmark-all-no-packing.o gemm-blas.o
 	$(CC) -o $@ $^ $(FLAGS)  $(LDLIBS) -rpath /Users/pzzzzz/miniconda3/envs/ds/lib
 benchmark-all-naive : benchmark-all.o gemm-naive-global-all.o
@@ -42,12 +50,15 @@ benchmark-blis : benchmark.o gemm-blis.o
 	$(CC) -o $@ $^ $(FLAGS)  $(LDLIBS) /Users/pzzzzz/blis-install/lib/libblis.a -rpath /Users/pzzzzz/blis-install/lib -rpath /Users/pzzzzz/miniconda3/envs/ds/lib
 benchmark-ulm : benchmark.o gemm-ulm.o
 	$(CC) -o $@ $^ $(FLAGS)  $(LDLIBS) -rpath /Users/pzzzzz/miniconda3/envs/ds/lib
-test : test-all.o gemm-naive-global-all.o
+test : test-all-d.o gemm-naive-global-all-d.o
 	$(CC) -o $@ $^ --debug -g $(LDLIBS) -rpath /Users/pzzzzz/miniconda3/envs/ds/lib
 test-m : mkl_test.o gemm-blas.o
 	$(CC) -o $@ $^ --debug -g $(LDLIBS) -rpath /Users/pzzzzz/miniconda3/envs/ds/lib
 %.o : %.cpp
 	$(CC) -c $(CFLAGS) $(FLAGS) $< $(LDLIBS)
+
+%-d.o:%.cpp
+	$(CC) -c $(CFLAGS) $(DEBUG) $< $(LDLIBS) -o $@
 
 run-naive:
 	make benchmark-naive

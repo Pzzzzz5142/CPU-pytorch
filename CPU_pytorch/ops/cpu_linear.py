@@ -34,9 +34,9 @@ class CPULinear(nn.Linear):
         super().__init__(in_features, out_features, bias, device, dtype)
         self.lin_id = CPULinear.linear_id
         CPULinear.linear_id = CPULinear.linear_id + 1
-        cpu_lin_op = CPULinearBuilder().load(False)
+        cpu_lin_op = CPULinearBuilder().load()
 
-        cpu_lin_op.create_linear(self.lin_id, in_features, out_features, bias, False)
+        cpu_lin_op.create_linear(self.lin_id, in_features, out_features, bias, True)
 
         cpu_lin_op_dict[self.lin_id] = cpu_lin_op
 

@@ -33,6 +33,10 @@ class M(nn.Module):
         a = self.l1(a)
         return a
 
+class ModedM(nn.Mudule):
+    def __init__(self)->None:
+        super().__init__()
+        self.l=nn.Linear(2,5)
 
 m = M()
 

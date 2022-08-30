@@ -1,4 +1,4 @@
-extern void square_gemm(int, int, int, float *A, float *B, float *C);
+extern void square_gemm(int, int, int, float *A, float *B, float *C, bool);
 #include <stdio.h>
 #include <stdlib.h>
 #include <memory.h>
@@ -27,22 +27,22 @@ static void print_matrix(int col, int row, float *A)
 }
 void test()
 {
-#define TEST_N_LEN 2
-#define TEST_M_LEN 2
-#define TEST_K_LEN 2
+#define TEST_N_LEN 1024
+#define TEST_M_LEN 6
+#define TEST_K_LEN 256
     float A[TEST_M_LEN * TEST_K_LEN], B[TEST_N_LEN * TEST_K_LEN];
     for (int i = 0; i < TEST_K_LEN * TEST_M_LEN; i++)
         A[i] = i;
     for (int i = 0; i < TEST_K_LEN * TEST_N_LEN; i++)
         B[i] = i;
-    print_matrix(TEST_M_LEN, TEST_K_LEN, A);
-    print_matrix(TEST_K_LEN, TEST_N_LEN, B);
+    // print_matrix(TEST_M_LEN, TEST_K_LEN, A);
+    // print_matrix(TEST_K_LEN, TEST_N_LEN, B);
     float C[TEST_M_LEN * TEST_N_LEN] = {0};
-    square_gemm(TEST_M_LEN, TEST_N_LEN, TEST_K_LEN, A, B, C);
-    print_matrix(TEST_M_LEN, TEST_N_LEN, C);
+    square_gemm(TEST_M_LEN, TEST_N_LEN, TEST_K_LEN, A, B, C, false);
+    // print_matrix(TEST_M_LEN, TEST_N_LEN, C);
     memset(C, 0, sizeof(C));
     ref_gemm(TEST_M_LEN, TEST_N_LEN, TEST_K_LEN, A, B, C);
-    print_matrix(TEST_M_LEN, TEST_N_LEN, C);
+    // print_matrix(TEST_M_LEN, TEST_N_LEN, C);
 }
 
 static void transpose_small_blk(int lda, int M, int N, float *A)

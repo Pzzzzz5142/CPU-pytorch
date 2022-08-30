@@ -1,6 +1,7 @@
 #include "cpu_linear.h"
 #include <omp.h>
 #include <torch/extension.h>
+#include "sgemm.h"
 #include <mkl.h>
 #include <iostream>
 #include <memory>
@@ -44,6 +45,7 @@ int destroy_linear(int linear_id)
 
 torch::Tensor cpu_linear_forward(const torch::Tensor &input, const torch::Tensor &weight, const torch::optional<torch::Tensor> &bias_opt = torch::nullopt)
 {
+    std::cout << "We get insided" << std::endl;
     int64_t input_col = 1;
     std::vector<int64_t> output_size(input.dim());
     for (int i = 0; i < input.dim() - 1; i++)
@@ -62,8 +64,12 @@ torch::Tensor cpu_linear_forward(const torch::Tensor &input, const torch::Tensor
         float *weight_ptr = (float *)weight_c.data_ptr();
         float *output_ptr = (float *)output.data_ptr();
 
-        cblas_sgemm(CblasRowMajor, CblasNoTrans, CblasTrans, input_col, weight_c.size(0), input_c.size(input_c.dim() - 1), 1, input_ptr, input_c.size(input_c.dim() - 1), weight_ptr, weight_c.size(1), 1, output_ptr, weight_c.size(0));
+        std::cout << input_col << " " << weight.size(1) << " " << weight.size(0) << std::endl;
 
+        square_gemm(input_col, weight.size(1), weight.size(0), input_ptr, weight_ptr, output_ptr, bool(bias_opt));
+        // cblas_sgemm(CblasRowMajor, CblasNoTrans, CblasTrans, input_col, weight_c.size(0), input_c.size(input_c.dim() - 1), 1, input_ptr, input_c.size(input_c.dim() - 1), weight_ptr, weight_c.size(1), 1, output_ptr, weight_c.size(0));
+
+        std::cout << "We leave bias" << std::endl;
         return output;
     }
     else
@@ -82,11 +88,13 @@ torch::Tensor cpu_linear_forward(const torch::Tensor &input, const torch::Tensor
         float *input_ptr = (float *)input_c.data_ptr();
         float *weight_ptr = (float *)weight_c.data_ptr();
         float *output_ptr = (float *)output.data_ptr();
-        int n = weight.dim() == 2 ? weight_c.size(0) : 1;
-        int k = weight.dim() == 2 ? weight_c.size(1) : weight_c.size(0);
+        int n = weight.dim() == 2 ? weight_c.size(1) : 1;
+        int k = weight.dim() == 2 ? weight_c.size(0) : weight_c.size(1);
+        std::cout << input_col << " " << n << " " << k << std::endl;
 
-        cblas_sgemm(CblasRowMajor, CblasNoTrans, CblasTrans, input_col, n, input_c.size(input_c.dim() - 1), 1, input_ptr, input_c.size(input_c.dim() - 1), weight_ptr, k, 1, output_ptr, n);
-
+        square_gemm(input_col, n, k, input_ptr, weight_ptr, output_ptr, bool(bias_opt));
+        // cblas_sgemm(CblasRowMajor, CblasNoTrans, CblasTrans, input_col, n, input_c.size(input_c.dim() - 1), 1, input_ptr, input_c.size(input_c.dim() - 1), weight_ptr, k, 1, output_ptr, n);
+        std::cout << "We leave" << std::endl;
         return output;
     }
 }

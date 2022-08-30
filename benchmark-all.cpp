@@ -30,7 +30,7 @@ void reference_gemm(int N, float ALPHA, float *A, float *B, float *C)
 
 /* Your function must have the following signature: */
 extern const char *gemm_desc;
-extern void square_gemm(int, int, int, float *, float *, float *);
+extern void square_gemm(int, int, int, float *, float *, float *, bool a = false);
 
 double wall_time()
 {
@@ -85,7 +85,7 @@ int main(int argc, char **argv)
         //    319, 320, 321, 417, 479, 480, 511, 512, 639, 640, 767, 768, 769, 1024, 2048 };
 
         {127, 128, 129, 255, 256, 257, 383, 384, 385, 511, 512, 513, 639, 640,
-         641, 767, 768, 769, 895, 896, 897, 1023, 1024, 1025, 1151, 1152, 1153, 1279, 1280, 1281};
+         641, 767, 768, 769, 895, 896, 897, 1023, 1024, 1025, 1151, 1152, 1153, 1279, 1280, 1281, 2047, 2048, 2049, 4095, 4096, 4097};
 
     int nsizes = sizeof(test_sizes) / sizeof(test_sizes[0]);
 
@@ -182,9 +182,9 @@ int main(int argc, char **argv)
         reference_gemm(n, -3. * FLT_EPSILON * n, A, B, C);
 
         /* If any element in C is positive, then something went wrong in square_gemm */
-        // for (int i = 0; i < n * n; ++i)
-        //     if (C[i] > 0)
-        //         die("*** FAILURE *** Error in matrix multiply exceeds componentwise error bounds.\n");
+        for (int i = 0; i < n * n; ++i)
+            if (C[i] > 0)
+                die("*** FAILURE *** Error in matrix multiply exceeds componentwise error bounds.\n");
     }
     res /= count;
     printf("Average %lf \n", res);
