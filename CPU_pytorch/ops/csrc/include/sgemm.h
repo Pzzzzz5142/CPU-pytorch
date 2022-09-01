@@ -4,6 +4,7 @@
 #include "simd.h"
 #include <new>
 #include <assert.h>
+#include <vector>
 
 #define A(i, j) calA[(i) + (j)*lda]
 #define B(i, j) calB[(i)*ldb + (j)]
@@ -376,7 +377,7 @@ void square_gemm(int M, int N, int K, float *a, float *b, float *c, bool bias = 
 {
     float *calA = a, *calB = b, *calC = c;
 
-    size_t padM = (M_KERNEL_SIZE - (M % M_KERNEL_SIZE)) % M_KERNEL_SIZE, padN = (N_KERNEL_SIZE - (N % N_KERNEL_SIZE)) % N_KERNEL_SIZE, padK = 48 - (K % 48);
+    size_t padM = (M_KERNEL_SIZE - (M % M_KERNEL_SIZE)) % M_KERNEL_SIZE, padN = (N_KERNEL_SIZE - (N % N_KERNEL_SIZE)) % N_KERNEL_SIZE;
     size_t newM = M + padM, newN = N + padN, newK = K;
 
     calA = new (addr_align) float[newM * newK];
@@ -439,7 +440,7 @@ void square_gemm(int M, int N, int K, float *a, float *b, float *c, bool bias = 
     ::operator delete[](calC, addr_align);
 }
 
-void gemm_compute(int M, int N, int K, float *a, float *b, float *c)
+void gemm_compute(int M, int N, int K, float *a, float *b, float *c, float beta = 0)
 {
     float *calA = a, *calB = b, *calC = c;
 
@@ -465,8 +466,6 @@ void gemm_compute(int M, int N, int K, float *a, float *b, float *c)
     //#pragma omp parallel for
     for (int k = 0; k < K; k += K_BLOCK_SIZE)
     {
-        // auto calC = new (addr_align) float[newM * newN];
-        // memset(calC, 0, sizeof(float) * newM * newN);
         auto ik = K_BLOCK_SIZE < K - k ? K_BLOCK_SIZE : K - k;
         for (int n = 0; n < newN; n += N_BLOCK_SIZE)
         {
@@ -483,17 +482,19 @@ void gemm_compute(int M, int N, int K, float *a, float *b, float *c)
     {
         for (int j = 0; j < N; j++)
         {
-            // printf("%f", C(i, j));
-            c[i * N + j] += C(i, j);
+            if (beta == 0)
+                c[i * N + j] = C(i, j);
+            else
+                c[i * N + j] = beta * c[i * N + j] + C(i, j);
         }
     }
     ::operator delete[](calC, addr_align);
     ::operator delete[](calA, addr_align);
 }
 
-float *packing(int M, int N, int K, float *b, int ldb)
+float *packing(int N, int K, float *b, int ldb)
 {
-    size_t padN = (N_KERNEL_SIZE - (N % N_KERNEL_SIZE)) % N_KERNEL_SIZE, padK = 64 - (K % 64);
+    size_t padN = (N_KERNEL_SIZE - (N % N_KERNEL_SIZE)) % N_KERNEL_SIZE;
     size_t newN = N + padN, newK = K;
     auto res = new (addr_align) float[newN * newK];
     memset(res, 0, sizeof(float) * newN * newK);
@@ -515,4 +516,11 @@ float *packing(int M, int N, int K, float *b, int ldb)
 void free_packing(float *Bp)
 {
     ::operator delete[](Bp, addr_align);
+}
+
+std::vector<size_t> get_packed_size(size_t M, size_t N, size_t K)
+{
+    size_t padM = (M_KERNEL_SIZE - (M % M_KERNEL_SIZE)) % M_KERNEL_SIZE, padN = (N_KERNEL_SIZE - (N % N_KERNEL_SIZE)) % N_KERNEL_SIZE;
+    size_t newM = M + padM, newN = N + padN, newK = K;
+    return {newM, newN, newK};
 }

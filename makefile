@@ -52,6 +52,8 @@ benchmark-ulm : benchmark.o gemm-ulm.o
 	$(CC) -o $@ $^ $(FLAGS)  $(LDLIBS) -rpath /Users/pzzzzz/miniconda3/envs/ds/lib
 test : test-all-d.o gemm-naive-global-all-d.o
 	$(CC) -o $@ $^ --debug -g $(LDLIBS) -rpath /Users/pzzzzz/miniconda3/envs/ds/lib
+test-no-packing : test-no-packing-d.o gemm-naive-global-all-d.o
+	$(CC) -o $@ $^ --debug -g $(LDLIBS) -rpath /Users/pzzzzz/miniconda3/envs/ds/lib
 test-m : mkl_test.o gemm-blas.o
 	$(CC) -o $@ $^ --debug -g $(LDLIBS) -rpath /Users/pzzzzz/miniconda3/envs/ds/lib
 %.o : %.cpp

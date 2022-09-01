@@ -32,8 +32,8 @@ void reference_gemm(int N, float ALPHA, float *A, float *B, float *C)
 /* Your function must have the following signature: */
 extern const char *gemm_desc;
 extern void square_gemm(int, int, int, float *, float *, float *);
-extern void gemm_compute(int, int, int, float *, float *, float *);
-extern float *packing(int, int, int, float *, int);
+extern void gemm_compute(int, int, int, float *, float *, float *, float beta = 0);
+extern float *packing(int, int, float *, int);
 extern void free_packing(float *);
 
 double wall_time()
@@ -118,7 +118,7 @@ int main(int argc, char **argv)
         fill(B, n * n);
         fill(C, n * n);
 
-        auto newB = packing(6, n, n, B, n);
+        auto newB = packing(n, n, B, n);
 
         /* Measure performance (in Gflops/s). */
 

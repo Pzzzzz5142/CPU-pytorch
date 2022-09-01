@@ -1,4 +1,8 @@
-extern void square_gemm(int, int, int, float *A, float *B, float *C, bool);
+
+
+extern void gemm_compute(int, int, int, float *, float *, float *, float beta = 0);
+extern float *packing(int, int, float *, int);
+extern void free_packing(float *);
 #include <stdio.h>
 #include <stdlib.h>
 #include <memory.h>
@@ -27,22 +31,23 @@ static void print_matrix(int col, int row, float *A)
 }
 void test()
 {
-#define TEST_N_LEN 2048
+#define TEST_N_LEN 4
 #define TEST_M_LEN 6
-#define TEST_K_LEN 4096
+#define TEST_K_LEN 3
     auto *A = new float[TEST_M_LEN * TEST_K_LEN], *B = new float[TEST_N_LEN * TEST_K_LEN];
     for (int i = 0; i < TEST_K_LEN * TEST_M_LEN; i++)
         A[i] = i;
     for (int i = 0; i < TEST_K_LEN * TEST_N_LEN; i++)
         B[i] = i;
-    // print_matrix(TEST_M_LEN, TEST_K_LEN, A);
-    // print_matrix(TEST_K_LEN, TEST_N_LEN, B);
+    print_matrix(TEST_M_LEN, TEST_K_LEN, A);
+    print_matrix(TEST_K_LEN, TEST_N_LEN, B);
     float *C = new float[TEST_M_LEN * TEST_N_LEN];
-    square_gemm(TEST_M_LEN, TEST_N_LEN, TEST_K_LEN, A, B, C, false);
-    // print_matrix(TEST_M_LEN, TEST_N_LEN, C);
+    auto packedB = packing(TEST_N_LEN, TEST_K_LEN, B, TEST_K_LEN);
+    gemm_compute(TEST_M_LEN, TEST_N_LEN, TEST_K_LEN, A, packedB, C, 0);
+    print_matrix(TEST_M_LEN, TEST_N_LEN, C);
     memset(C, 0, sizeof(float) * TEST_N_LEN * TEST_M_LEN);
     ref_gemm(TEST_M_LEN, TEST_N_LEN, TEST_K_LEN, A, B, C);
-    // print_matrix(TEST_M_LEN, TEST_N_LEN, C);
+    print_matrix(TEST_M_LEN, TEST_N_LEN, C);
     delete[] A;
     delete[] B;
     delete[] C;
