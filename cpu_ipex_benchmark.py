@@ -1,24 +1,30 @@
 import torch
 from CPU_pytorch.ops import CPUPackedLinear
+from CPU_pytorch.ops import CPUPackedLayernormLinear
 import torch.utils.benchmark as benchmark
 import torch.nn as nn
+
+N_FEATURE = 2048
 
 
 class Model(nn.Module):
     def __init__(self) -> None:
         super().__init__()
-        self.linear = nn.Linear(2048, 2048)
-        self.linear1 = nn.Linear(2048, 300000)
+        self.linear = nn.Linear(N_FEATURE, N_FEATURE)
+        self.layernorm = nn.LayerNorm(N_FEATURE)
+        self.linear1 = nn.Linear(N_FEATURE, 30000)
 
     def forward(self, input):
         return self.linear1(self.linear(input))
 
 
 class MyModel(nn.Module):
-    def __init__(self, weight1, bias1, weight2, bias2) -> None:
+    def __init__(self, weight1, bias1, weight2, bias2, weight3, bias3) -> None:
         super().__init__()
-        self.linear = CPUPackedLinear(2048, 2048, weight1, bias1)
-        self.linear1 = CPUPackedLinear(2048, 300000, weight2, bias2)
+        self.linear = CPUPackedLinear(N_FEATURE, N_FEATURE, weight1, bias1)
+        self.linear1 = CPUPackedLayernormLinear(
+            N_FEATURE, 30000, weight2, bias2, weight3, bias3
+        )
 
     def forward(self, input):
         return self.linear1(self.linear(input))
@@ -26,10 +32,15 @@ class MyModel(nn.Module):
 
 net = Model()
 my_net = MyModel(
-    net.linear.weight, net.linear.bias, net.linear1.weight, net.linear1.bias
+    net.linear.weight,
+    net.linear.bias,
+    net.linear1.weight,
+    net.linear1.bias,
+    net.layernorm.weight,
+    net.layernorm.bias,
 )
-a = torch.empty(6, 2048)
-b = torch.empty(6, 2048)
+a = torch.empty(6, N_FEATURE)
+b = torch.empty(6, N_FEATURE)
 
 import intel_extension_for_pytorch as ipex
 
