@@ -7,7 +7,7 @@ CC = g++
 FLAGS = -O3
 DEBUG = -g --debug
 # -fopt-info
-LDLIBS = -I/Users/pzzzzz/miniconda3/envs/ds/include -I/Users/pzzzzz/blis-install/include -I/Users/pzzzzz/CPU-pytorch/CPU_pytorch/ops/csrc/include -L/Users/pzzzzz/miniconda3/envs/ds/lib -lmkl_intel_lp64 -lmkl_intel_thread -lmkl_core -liomp5 -lpthread -lm -ldl -std=c++17 -march=native -Xpreprocessor -fopenmp
+LDLIBS = -I/Users/pzzzzz/miniconda3/envs/ds/include -I/Users/pzzzzz/Openblas-install/include -I/Users/pzzzzz/CPU-pytorch/CPU_pytorch/ops/csrc/include -L/Users/pzzzzz/miniconda3/envs/ds/lib -lmkl_intel_lp64 -lmkl_intel_thread -lmkl_core -liomp5 -lpthread -lm -ldl -std=c++17 -march=native -Xpreprocessor -fopenmp
 targets = benchmark-naive benchmark-blas
 objects = benchmark.o gemm-naive.o test.o
 
@@ -36,6 +36,8 @@ benchmark-no-packing-omp: benchmark-all-no-packing.o gemm-naive-global-all.o
 	$(CC) -o $@ $^ $(FLAGS) -lomp
 benchmark-no-packing-blas: benchmark-all-no-packing.o gemm-blas.o
 	$(CC) -o $@ $^ $(FLAGS)  $(LDLIBS) -rpath /Users/pzzzzz/miniconda3/envs/ds/lib
+benchmark-no-packing-openblas: benchmark-all.o gemm-openblas.o
+	$(CC) -o $@ $^ $(FLAGS)  $(LDLIBS) -rpath /Users/pzzzzz/Openblas-install/lib -rpath /Users/pzzzzz/miniconda3/envs/ds/lib
 benchmark-all-naive : benchmark-all.o gemm-naive-global-all.o
 	$(CC) -o $@ $^ $(FLAGS)  $(LDLIBS) -rpath /Users/pzzzzz/miniconda3/envs/ds/lib
 benchmark-omp : benchmark.o gemm-naive.o
