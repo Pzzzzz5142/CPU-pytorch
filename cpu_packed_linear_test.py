@@ -32,9 +32,4 @@ with torch.no_grad():
                 )
                 print(t0.timeit(10))
                 print(t1.timeit(10))
-                if torch.cuda.is_available():
-                    b = b.to("cuda")
-                    d = d.to("cuda")
-                    t2 = benchmark.Timer(stmt="d(b)", globals={"d": d, "b": b})
-                    print(t2.timeit(1000))
                 print()
