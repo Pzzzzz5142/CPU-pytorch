@@ -24,8 +24,12 @@ with torch.no_grad():
                 r1 = a(b)
                 r2 = d(b)
                 assert r1.allclose(r2, atol=1e-7, equal_nan=True)
-                t0 = benchmark.Timer(stmt="a(b)", globals={"a": a, "b": b})
-                t1 = benchmark.Timer(stmt="d(b)", globals={"d": d, "b": b})
+                t0 = benchmark.Timer(
+                    stmt="a(b)", globals={"a": a, "b": b}, num_threads=6
+                )
+                t1 = benchmark.Timer(
+                    stmt="d(b)", globals={"d": d, "b": b}, num_threads=6
+                )
                 print(t0.timeit(10))
                 print(t1.timeit(10))
                 if torch.cuda.is_available():

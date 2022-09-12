@@ -174,7 +174,7 @@ int main(int argc, char **argv)
         }
         // gptlRet = GPTLstop("gemm");
         // gptlRet = GPTLpr_file("outfile");
-        printf("Size: %d\tGflop/s: %.3g (%d iter, %.3f seconds)\tFused Gflop/s: %.3g (%d iter, %.3f seconds)\n", n, Gflops_s, n_iterations, seconds, Fused_gflops_s, n_iterations, fused_seconds);
+        printf("Size: %d\tGflop/s: %.3g (%d iter, %.3f seconds)\t\tFused Gflop/s: %.3g (%d iter, %.3f seconds)\n", n, Gflops_s, n_iterations, seconds, Fused_gflops_s, n_iterations, fused_seconds);
         res += Gflops_s;
         count += 1;
         /* Ensure that error does not exceed the theoretical error bound. */
@@ -198,9 +198,9 @@ int main(int argc, char **argv)
         reference_gemm(n, -3. * FLT_EPSILON * n, A, B, C);
 
         /* If any element in C is positive, then something went wrong in square_gemm */
-        // for (int i = 0; i < n * n; ++i)
-        //     if (C[i] > 0)
-        //         die("*** FAILURE *** Error in matrix multiply exceeds componentwise error bounds.\n");
+        for (int i = 0; i < n * n; ++i)
+            if (C[i] > 0)
+                die("*** FAILURE *** Error in matrix multiply exceeds componentwise error bounds.\n");
     }
     res /= count;
     printf("Average %lf \n", res);

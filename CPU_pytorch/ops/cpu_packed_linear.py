@@ -40,7 +40,7 @@ class CPUPackedLinear(nn.Linear):
         self.packed_lin_id = CPUPackedLinear.packed_linear_id
         CPUPackedLinear.packed_linear_id = CPUPackedLinear.packed_linear_id + 1
         self.bias = bias_tensor
-        cpu_packed_lin_op = CPUPackedLinearBuilder().load(False)
+        cpu_packed_lin_op = CPUPackedLinearBuilder().load(True)
 
         print("Compile OK! ")
 

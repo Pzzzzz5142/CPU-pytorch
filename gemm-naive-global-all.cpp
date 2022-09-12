@@ -9,6 +9,7 @@
 #include <algorithm>
 #include <vector>
 #include <math.h>
+#include <omp.h>
 
 #define A(i, j) calA[(i) + (j)*lda]
 #define B(i, j) calB[(i)*ldb + (j)]
@@ -20,7 +21,7 @@
 
 const size_t M_KERNEL_SIZE = 6;
 const size_t N_KERNEL_SIZE = 16;
-const size_t K_BLOCK_SIZE = 128;
+const size_t K_BLOCK_SIZE = 1024;
 const size_t M_BLOCK_SIZE = 384;
 const size_t N_BLOCK_SIZE = 1024;
 const size_t packA_SIZE = sizeof(float) * M_BLOCK_SIZE * K_BLOCK_SIZE / (1024.0);
@@ -37,7 +38,7 @@ typedef unsigned long long dim_t;
 auto addr_align = std::align_val_t(64);
 
 void addDot_asm_6x16(
-    size_t K, size_t newN, float *calA, int lda, float *calB, int ldb, float *calC, float *nextB)
+    size_t K, size_t newN, float *calA, int lda, float *calB, int ldb, float *calC)
 {
     float *pointA = &A(0, 0), *pointB = &B(0, 0), *pointC = &C(0, 0);
 
@@ -51,7 +52,6 @@ void addDot_asm_6x16(
         "movq      %3,        %%rbx                \n\t" // Address of B stored in %rbx
         "movq      %4,        %%rcx                \n\t" // Address of C(0, 0) stored in %rcx
         "movq      %5,        %%rdx                \n\t" // newN stored in %rdx
-        "movq      %6,        %%r10                \n\t" // Address of sum stored in %r10
 
         "leaq        (%%rcx, %%rdx, 8),  %%r8      \n\t"
         "leaq         (%%r8, %%rdx, 4),  %%r8      \n\t"
@@ -246,9 +246,8 @@ void addDot_asm_6x16(
         "m"(pointA), // 2
         "m"(pointB), // 3
         "m"(pointC), // 4
-        "m"(newN),   // 5
-        "m"(nextB)
-        : // register clobber list
+        "m"(newN)    // 5
+        :            // register clobber list
         "rax", "rbx", "rcx", "rdx", "rsi", "r8", "r9", "r10",
         "ymm0", "ymm1", "ymm2", "ymm3",
         "ymm4", "ymm5", "ymm6", "ymm7",
@@ -674,17 +673,25 @@ void inner_kernal(int m, int n, int k, int newN, float *pointA, float *pointB, f
 {
     for (int i = 0; i < m; i += M_KERNEL_SIZE)
     {
-        //#pragma omp parallel for
-        for (int j = 0; j < n; j += N_KERNEL_SIZE)
+#pragma omp parallel
         {
-            // for (int p = 0; p < N_KERNEL_SIZE * k; p += 8)
-            //{
-            //     _mm_prefetch(pointB + ((j + N_KERNEL_SIZE) * k) + p, _MM_HINT_NTA);
-            // }
-            addDot_asm_6x16(k, newN, pointA, M_KERNEL_SIZE, pointB + (j * k), N_KERNEL_SIZE, &C(i, j), pointB + ((j + N_KERNEL_SIZE) * k));
+            int id = omp_get_thread_num();
+            int total = omp_get_num_threads();
+            int n_num = (n + N_KERNEL_SIZE - 1) / N_KERNEL_SIZE;
+            int more = n_num % total;
+            if (more == 0)
+                more = total;
+            int less = total - more;
+            int chunk_size = n_num % total == 0 ? n_num / total : n_num / total + 1;
+            int offset = id >= more ? more * chunk_size + (id - more) * (chunk_size - 1) : id * chunk_size;
+            int my_size = id < more ? chunk_size : chunk_size - 1;
+            for (int j = offset * N_KERNEL_SIZE; j < (my_size + offset) * N_KERNEL_SIZE; j += N_KERNEL_SIZE)
+            // for (int j = 0; j < n; j += N_KERNEL_SIZE)
+            {
+                addDot_asm_6x16(k, newN, pointA + i * k, M_KERNEL_SIZE, pointB + (j * k), N_KERNEL_SIZE, &C(i, j));
+            }
         }
-        //_mm_prefetch(pointB, _MM_HINT_NTA);
-        pointA += M_KERNEL_SIZE * k;
+        // exit(0);
     }
 }
 
@@ -698,7 +705,7 @@ float *inner_reduce_kernal(int m, int n, int k, int newN, float *pointA, float *
         //#pragma omp parallel for
         for (int j = 0; j < n; j += N_KERNEL_SIZE)
         {
-            auto tmp = addDotReduce_asm_6x16(k, newN, pointA, M_KERNEL_SIZE, pointB + (j * k), N_KERNEL_SIZE, &C(i, j), pointB + ((j + N_KERNEL_SIZE) * k));
+            auto tmp = addDotReduce_asm_6x16(k, newN, pointA + i * k, M_KERNEL_SIZE, pointB + (j * k), N_KERNEL_SIZE, &C(i, j), pointB + ((j + N_KERNEL_SIZE) * k));
             for (int kk = 0; kk < 6; kk++)
             {
                 p[kk] += tmp[kk];
@@ -706,7 +713,6 @@ float *inner_reduce_kernal(int m, int n, int k, int newN, float *pointA, float *
             }
         }
         p += M_KERNEL_SIZE;
-        pointA += M_KERNEL_SIZE * k;
     }
     return res;
 }
@@ -896,10 +902,6 @@ void gemm_layernorm_compute_sum(int M, int N, int K, float *a, float *b, float *
     }
     float sum[2 * newM];
     memset(sum, 0, sizeof(sum));
-    if (bias)
-        for (int i = 0; i < M; i++)
-            for (int j = 0; j < N; j++)
-                C(i, j) = oldC(i, j);
     int k = 0;
     //#pragma omp parallel for
     if (K > K_BLOCK_SIZE)
@@ -916,6 +918,11 @@ void gemm_layernorm_compute_sum(int M, int N, int K, float *a, float *b, float *
                 }
             }
         }
+
+    if (bias)
+        for (int i = 0; i < M; i++)
+            for (int j = 0; j < N; j++)
+                C(i, j) += oldC(0, j);
 
     auto ik = K_BLOCK_SIZE < K - k ? K_BLOCK_SIZE : K - k;
     for (int n = 0; n < newN; n += N_BLOCK_SIZE)
