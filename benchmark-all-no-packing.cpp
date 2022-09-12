@@ -198,9 +198,9 @@ int main(int argc, char **argv)
         reference_gemm(n, -3. * FLT_EPSILON * n, A, B, C);
 
         /* If any element in C is positive, then something went wrong in square_gemm */
-        // for (int i = 0; i < n * n; ++i)
-        //     if (C[i] > 0)
-        //         die("*** FAILURE *** Error in matrix multiply exceeds componentwise error bounds.\n");
+        for (int i = 0; i < n * n; ++i)
+            if (C[i] > 0)
+                die("*** FAILURE *** Error in matrix multiply exceeds componentwise error bounds.\n");
     }
     res /= count;
     printf("Average %lf \n", res);

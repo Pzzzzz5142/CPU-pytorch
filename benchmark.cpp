@@ -30,7 +30,7 @@ void reference_gemm(int N, float ALPHA, float *A, float *B, float *C)
 
 /* Your function must have the following signature: */
 extern const char *gemm_desc;
-extern void square_gemm(int, float *, float *, float *);
+extern void square_gemm(int, int, int, float *, float *, float *, bool beta = false);
 
 double wall_time()
 {
@@ -147,12 +147,12 @@ int main(int argc, char **argv)
         for (n_iterations = 1; seconds < timeout; n_iterations *= 2)
         {
             /* Warm-up */
-            square_gemm(n, A, B, C);
+            square_gemm(n, n, n, A, B, C);
 
             /* Benchmark n_iterations runs of square_gemm */
             seconds = -wall_time();
             for (int it = 0; it < n_iterations; ++it)
-                square_gemm(n, A, B, C);
+                square_gemm(n, n, n, A, B, C);
             seconds += wall_time();
 
             /*  compute Mflop/s rate */
@@ -167,7 +167,7 @@ int main(int argc, char **argv)
 
         /* C := A * B, computed with square_gemm */
         memset(C, 0, n * n * sizeof(float));
-        square_gemm(n, A, B, C);
+        square_gemm(n, n, n, A, B, C);
         /* Do not explicitly check that A and B were unmodified on square_gemm exit
          *  - if they were, the following will most likely detect it:
          * C := C - A * B, computed with reference_gemm */

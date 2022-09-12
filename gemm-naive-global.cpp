@@ -3,6 +3,7 @@
 #define __AVX256__ 1
 #include <simd.h>
 #include <new>
+#include <assert.h>
 
 #define A(i, j) calA[(i) + (j)*lda]
 #define B(i, j) calB[(i)*ldb + (j)]
@@ -357,7 +358,6 @@ void inner_kernal(int m, int n, int k, int newN, float *pointA, float *pointB, f
         }
         pointA += M_KERNEL_SIZE * k;
     }
-    // printf("using space: %d, N_KERNEL_SIZE * k: %d * %d = %d.\n", cal, (n + N_KERNEL_SIZE - 1) / N_KERNEL_SIZE * N_KERNEL_SIZE, k, (n + N_KERNEL_SIZE - 1) / N_KERNEL_SIZE * N_KERNEL_SIZE * k);
 }
 
 void globalPackingA(size_t m, size_t k, size_t N, float *a, size_t lda, float *newA)
